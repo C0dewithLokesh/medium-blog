@@ -11,7 +11,19 @@ const app = new Hono<{
 }>();
 
 app.use('/api/v1/blog/*', async (c, next) => {
-  await next()
+	const jwt = c.req.header('Authorization');
+	if (!jwt) {
+		c.status(401);
+		return c.json({ error: "unauthorized" });
+	}
+	const token = jwt.split(' ')[1];
+	const payload = await verify(token, c.env.JWT_SECRET);
+	if (!payload) {
+		c.status(401);
+		return c.json({ error: "unauthorized" });
+	}
+	c.set('userId', payload.id);
+	await next()
 })
 
 app.post("/api/v1/signup", async (c) => {
@@ -44,6 +56,7 @@ app.post("/api/v1/signin", async (c) => {
   const user = await prisma.user.findUnique({
     where: {
       email: body.email,
+      password: body.password
     },
   });
 
@@ -58,7 +71,7 @@ app.post("/api/v1/signin", async (c) => {
 
 app.get("/api/v1/blog/:id", (c) => {
   const id = c.req.param("id");
-  console.log(id);
+  console.log(c.get('userId'));
   return c.text("get blog route");
 });
 
